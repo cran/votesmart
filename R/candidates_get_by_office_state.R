@@ -1,6 +1,6 @@
 #' Get candidates by the state in which they hold office
 #'
-#' @param state_ids Optional: vector of state abbreviations. Default is \code{NA}, for national elections.
+#' @param state_ids Optional: vector of state abbreviations. Default is \code{NA}, for national-level offices (e.g. US President and Vice President). For all other offices the \code{state_id} must be supplied.
 #' @param office_ids Required: vector of office ids that candidates hold. See \code{\link{office_get_levels}} and \code{\link{office_get_offices_by_level}} for office ids.
 #' @param election_years Optional: vector of election years in which the candidate held office. Default is the current year.
 #' @param all Boolean: should all possible combinations of the variables be searched for, or just the exact combination of them in the order they are supplied?
@@ -17,11 +17,12 @@
 #'   verbose = TRUE
 #' )
 #' }
-candidates_get_by_office_state <- function(state_ids = NA,
-  office_ids,
-  election_years = lubridate::year(lubridate::today()),
-  all = TRUE,
-  verbose = TRUE) {
+candidates_get_by_office_state <- function(
+    state_ids = NA,
+    office_ids,
+    election_years = lubridate::year(lubridate::today()),
+    all = TRUE,
+    verbose = TRUE) {
   state_ids %<>%
     as_char_vec()
   office_ids %<>%
@@ -38,7 +39,7 @@ candidates_get_by_office_state <- function(state_ids = NA,
       ) %>%
       mutate(
         query =
-          elmers(
+          glue::glue(
             "&stateId={state_id}&officeId={office_id}&electionYear={election_year}"
           )
       )
@@ -61,7 +62,7 @@ candidates_get_by_office_state <- function(state_ids = NA,
       ) %>%
       mutate(
         query =
-          elmers(
+          glue::glue(
             "&stateId={state_id}&officeId={office_id}&electionYear={election_year}"
           )
       )
@@ -73,14 +74,14 @@ candidates_get_by_office_state <- function(state_ids = NA,
 
   for (i in 1:nrow(query_df)) {
     q <- query_df$query[i]
-    state_id <- query_df$state_id[i]
-    office_id <- query_df$office_id[i]
-    election_year <- query_df$election_year[i]
+    this_state_id <- query_df$state_id[i]
+    this_office_id <- query_df$office_id[i]
+    this_election_year <- query_df$election_year[i]
 
     if (verbose) {
-      elmers_message(
-        "Requesting data for {{state_id: {state_id}, office_id: {office_id}, election_year: {election_year}}}."
-      )
+      message(glue::glue(
+        "Requesting data for {{state_id: {this_state_id}, office_id: {this_office_id}, election_year: {this_election_year}}}."
+      ))
     }
 
     this <- get(
@@ -92,9 +93,9 @@ candidates_get_by_office_state <- function(state_ids = NA,
 
     if (all(is.na(this))) {
       if (verbose) {
-        elmers_message(
+        message(glue::glue(
           "No results found for query {q}."
-        )
+        ))
       }
 
       # Other cols will be NA
@@ -104,15 +105,16 @@ candidates_get_by_office_state <- function(state_ids = NA,
         rename(
           office_state_id = state_id
         ) %>%
-        na_if("")
+        vs_na_if("")
     } else {
       # Turn each element into a tibble and rowbind them
       this %<>%
         mutate(
           # Sometimes these are off so set them explicitly
-          election_state_id = state_id,
-          office_id = office_id,
-          election_year = election_year,
+          office_state_id = office_state_id %>% coalesce(this_state_id),
+          election_state_id = election_state_id %>% coalesce(this_state_id),
+          office_id = office_id %>% coalesce(this_office_id),
+          election_year = election_year %>% coalesce(this_election_year),
         ) %>%
         transform_election_special() %>%
         select(

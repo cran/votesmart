@@ -8,17 +8,15 @@ pete_id <- 127151
 warren_id <- 141272
 
 test_that("votes_get_by_official", {
-  do_all <- sample(c(TRUE, FALSE), 1)
-
-  category_ids <- c(sample(1:100, 3), "")
-
-  res <-
-    votes_get_by_official(
-      c(abrams_id, warren_id, aoc_id, obama_id),
-      office_ids = "",
-      category_ids = category_ids,
-      all = do_all
-    )
+  vcr::use_cassette("votes_get_by_official", {
+    res <-
+      votes_get_by_official(
+        c(abrams_id, warren_id, aoc_id, obama_id),
+        office_ids = "",
+        category_ids = c("96", "10", "24", ""),
+        all = TRUE
+      )
+  })
 
   expect_gte(
     ncol(res),

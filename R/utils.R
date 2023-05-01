@@ -4,8 +4,8 @@ clean_df <- function(df) {
       snakecase::to_snake_case
     ) %>%
     as_tibble() %>%
-    na_if("") %>%
-    na_if("NA") %>%
+    vs_na_if("") %>%
+    vs_na_if("NA") %>%
     # Remove \"s
     purrr::map_dfc(
       stringr::str_remove_all,
@@ -15,10 +15,11 @@ clean_df <- function(df) {
     purrr::map_dfc(stringr::str_squish)
 }
 
-clean_html <- function(x,
-  split_on_nbsp = TRUE,
-  split_on_newline = FALSE,
-  remove_empty = TRUE) {
+clean_html <- function(
+    x,
+    split_on_nbsp = TRUE,
+    split_on_newline = FALSE,
+    remove_empty = TRUE) {
   if (split_on_nbsp) {
     x %<>%
       stringr::str_split("&nbsp") %>%
@@ -50,12 +51,11 @@ as_char_vec <- function(x) {
     as.character()
 }
 
-#' @importFrom gestalt %>>>%
-elmers <- glue::glue %>>>% as.character
-
-elmers_message <- elmers %>>>% message
-
-expand_grid <- expand.grid %>>>% as_tibble %>>>% purrr::map_dfc(as.character)
+expand_grid <- function(...) {
+  expand.grid(...) %>%
+    as_tibble() %>%
+    purrr::map_dfc(as.character)
+}
 
 transform_election_special <- function(tbl) {
   if ("election_special" %in% names(tbl)) {
@@ -71,10 +71,11 @@ transform_election_special <- function(tbl) {
   }
 }
 
-chunk_it <- function(tbl,
-  n_per_chunk = NA,
-  n_chunks = NA,
-  list_it = FALSE) {
+chunk_it <- function(
+    tbl,
+    n_per_chunk = NA,
+    n_chunks = NA,
+    list_it = FALSE) {
   if ((is.na(n_per_chunk) && is.na(n_chunks)) ||
     !is.na(n_per_chunk) && !is.na(n_chunks)) {
     stop("Exactly one of n_per_chunk or n_chunks must be set.")
@@ -121,4 +122,17 @@ skip_if_no_auth <- function() {
   if (identical(Sys.getenv("VOTESMART_API_KEY"), "")) {
     testthat::skip("No authentication available")
   }
+}
+
+#' Turn all character strings matching a value to \code{NA} in a dataframe
+#'
+#' @param tbl A data.frame or tibble
+#' @param pattern Pattern to turn to \code{NA}
+#' @noRd
+#' @examples
+#' tibble(x = c("", "not empty"), y = c("not empty", "")) %>%
+#'   vs_na_if()
+vs_na_if <- function(tbl, pattern = "") {
+  tbl %>%
+    mutate_if(is.character, list(~ na_if(., pattern)))
 }
